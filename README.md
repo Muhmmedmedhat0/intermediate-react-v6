@@ -1,36 +1,162 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Note Passer
 
-## Getting Started
+A small Next.js App Router application for passing notes between users, powered by SQLite.
 
-First, run the development server:
+The app demonstrates:
+
+- Server Components reading from a local SQLite database
+- Server Actions for writing/updating data
+- A client polling view that appends new rows incrementally
+- Basic TypeScript modeling for notes and users
+
+## Tech Stack
+
+- Next.js 16.1.6 (App Router)
+- React 19.2.3
+- TypeScript 5
+- SQLite via promised-sqlite3
+- ESLint 9 + eslint-config-next
+- Tailwind CSS v4 (imported in global stylesheet)
+
+## Application Overview
+
+This project currently assumes a fixed logged-in user with id 1 for several pages.
+
+Main routes:
+
+- / : simple navigation hub
+- /my-notes : shows notes to user 1 and from user 1
+- /write-note : form to insert a note (Server Action)
+- /secret-teacher-feed : auto-refreshing feed view that polls every 5s
+- /who-am-i : displays current user info and allows username update (Server Action)
+
+## Data Model (SQLite)
+
+Detected schema in notes.db:
+
+```sql
+CREATE TABLE users (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	password TEXT NOT NULL
+);
+
+CREATE TABLE notes (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	note TEXT NOT NULL,
+	from_user INTEGER NOT NULL,
+	to_user INTEGER NOT NULL,
+	FOREIGN KEY (from_user) REFERENCES users(id),
+	FOREIGN KEY (to_user) REFERENCES users(id)
+);
+```
+
+Current local sample data snapshot during analysis:
+
+- users: 7
+- notes: 52
+
+## Server Actions and Data Flow
+
+- Write note action
+  - Reads formData fields from_user, to_user, note
+  - Inserts into notes table
+  - Redirects to /
+
+- Update username action
+  - Reads formData fields username, id
+  - Updates users.name for that id
+  - Redirects to /
+
+- Teacher feed polling
+  - Initial fetch is server-side
+  - Client component polls every 5 seconds
+  - Incremental fetch uses since (last note id)
+
+## Project Structure
+
+```text
+src/app/
+	page.tsx
+	layout.tsx
+	globals.css
+	my-notes/
+		page.tsx
+	write-note/
+		page.tsx
+		post-notes.ts
+	secret-teacher-feed/
+		page.tsx
+		clint-page.tsx
+		fetch-notes.tsx
+	who-am-i/
+		page.tsx
+		clint-page.tsx
+		who-am-i.tsx
+		update-user-name.ts
+	types/
+		note.ts
+		user.ts
+```
+
+## Run Locally
+
+Prerequisites:
+
+- Node.js 20+ (Node 22 is working in this repo)
+- npm
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open in browser:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Production build:
 
-## Learn More
+```bash
+npm run build
+npm run start
+```
 
-To learn more about Next.js, take a look at the following resources:
+Lint:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes About Local Database
 
-## Deploy on Vercel
+- The app expects notes.db at the repository root.
+- Queries assume users table and notes table already exist.
+- Several pages currently hard-code user id 1 as the active user.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Known Issues
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Current lint findings:
+
+- src/app/secret-teacher-feed/fetch-notes.tsx uses explicit any
+- src/app/secret-teacher-feed/clint-page.tsx has an unused err variable in catch
+
+Runtime caveat seen previously on Windows:
+
+- Running multiple next dev processes in the same repo can trigger Turbopack cache/lock instability.
+- If that happens, stop duplicate dev processes, remove .next, and restart a single dev server.
+
+## Suggested Improvements
+
+- Replace hard-coded user id 1 with real auth/session context
+- Add DB bootstrap script and seed command for reproducible setup
+- Add form validation and user-facing error states
+- Add route-level loading and error boundaries
+- Add integration tests for server actions and main routes
