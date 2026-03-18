@@ -1,48 +1,26 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import type { Note } from '../../types/note';
+import { useState, useEffect } from 'react';
+import type { Note } from '../types/note';
 
 type Props = {
   fetchNotes: (since?: number | null) => Promise<Note[]>;
   initialNotes?: Note[];
 };
 
-export default function TeacherClientPage({ fetchNotes, initialNotes }: Props) {
-  const [notes, setNotes] = useState<Note[]>(initialNotes ?? []);
-  const notesRef = useRef<Note[]>(notes);
+export function TeacherClientPage({ fetchNotes, initialNotes }: Props) {
+  const [notes, setNotes] = useState(initialNotes ? initialNotes : []);
 
   useEffect(() => {
-    notesRef.current = notes;
-  }, [notes]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchAndAppend = async () => {
-      const since = notesRef.current.length
-        ? notesRef.current[notesRef.current.length - 1].id
-        : null;
-      try {
-        const newNotes = await fetchNotes(since);
-        if (!mounted || !newNotes?.length) return;
-        setNotes((prev) => {
-          const lastId = prev.length ? prev[prev.length - 1].id : 0;
-          const filtered = newNotes.filter((n) => n.id > lastId);
-          return filtered.length ? [...prev, ...filtered] : prev;
-        });
-      } catch (err) {
-        // swallow errors for polling; could add logging here
+    const interval = setInterval(async () => {
+      let since;
+      if (notes.length > 0) {
+        since = notes[notes.length - 1]?.id ?? null;
       }
-    };
-
-    // immediate fetch and periodic polling
-    fetchAndAppend();
-    const interval = setInterval(fetchAndAppend, 5000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [fetchNotes]);
+      const newNotes = await fetchNotes(since);
+      setNotes([...notes, ...newNotes]);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchNotes, notes]);
 
   return (
     <div>

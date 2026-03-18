@@ -17,5 +17,5 @@ export async function postNote(formData: FormData) {
     [from, to, note],
   );
 
-  redirect('/');
+  redirect('/my-notes');
 }
