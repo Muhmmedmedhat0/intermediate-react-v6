@@ -1,5 +1,6 @@
+'use client';
 import type { ReactNode } from 'react';
-import updateUsername from './update-user-name';
+import { updateUsername } from './update-user-name';
 
 type Props = {
   children: ReactNode;
